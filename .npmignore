@@ -1,0 +1,7 @@
+*.ts
+!*.d.ts
+tsconfig.json
+/test
+*.lock
+.*
+!.yalc

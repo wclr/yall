@@ -1,0 +1,23 @@
+{
+  "compilerOptions": {
+    "target": "es5",
+    "lib": ["es2015"],
+    "module": "commonjs",
+    "declaration": false,
+    "sourceMap": false,
+    "strictNullChecks": true,
+    "noImplicitAny": true,
+    "noImplicitThis": true, 
+    "noImplicitReturns": true,
+    "noFallthroughCasesInSwitch": true,
+    "experimentalDecorators": true,
+    "emitDecoratorMetadata": true,
+    "allowJs": false,
+    "newLine": "LF"
+  },
+  "formatCodeOptions": {
+    "indentSize": 2,
+    "tabSize": 2
+  },  
+  "exclude": ["**/node_modules/*"]
+}
