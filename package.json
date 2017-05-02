@@ -1,6 +1,6 @@
 {
   "name": "@whitecolor/yall",
-  "version": "1.0.0-pre.0",
+  "version": "1.0.0-pre.1",
   "main": "index.js",
   "bin": {
     "yall": "yall.js"
