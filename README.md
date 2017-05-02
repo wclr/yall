@@ -8,7 +8,9 @@ Because.
 
 ## What
 
-`Yall` is like `yarn/npm` for multiple folders with `package.json`/`yarn.lock`. It runs in parallel commands in multiple package's folders in one go.
+- `Yall` is like `yarn/npm` for multiple folders with `package.json`/`yarn.lock`. 
+- It looks up for folders with `package.json/yarn.lock` in the project tree and runs there given command (by default in parallel).
+- It can watch manifest/lock files and run commands automatically on change, this is useful in container based scenarios.
 
 ## Install
 
@@ -36,7 +38,7 @@ Additional `yall's` option flags:
 - `here` - will run only in current folder, if `folders` specified will run in those folders, but without nested.
 - `link-files` - create symlinks for `file:` dependencies (will not touch [`yalc`](http://github.com/whitecolor/yalc) dependencies).
 - `npm` - run `npm` command, alternativly to `yarn`
-- `watch` - watch mode, will watch for changes of `yarn.lock` (or `package.json` in case of `npm`) and run command in folder where file changed. Periodically rescans folders.
+- `watch` (TO IMPLEMENT) - watch mode, will watch for changes of `yarn.lock` (or `package.json` in case of `npm`) and run command in folder where file changed. Periodically rescans folders.
 
 
 ## Licence

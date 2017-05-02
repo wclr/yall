@@ -17,8 +17,16 @@ interface Args extends YallOptions {
   _: string[]
 }
 
-const argv = yargs
-  .usage(cliCommand + '[options] [yarn-options] [folder [folder2...]]')
+const removeDoubleHypenFromArgv = () => {
+  const rev = process.argv.concat([]).reverse()
+  rev.forEach((arg, i) =>
+    arg === '--' && process.argv.splice(rev.length - i - 1, 1)
+  )
+  return process.argv.slice(2)
+}
+
+yargs
+  .usage(cliCommand + '[yarn|npm command] [yarn|npm flags] [yall flags]')
   .string(['cache-folder', 'modules-folder'])
   .option('concurrency', {
     alias: 'con',
@@ -37,6 +45,8 @@ const argv = yargs
   .help(true)
   .argv as Args
 
+const argv = yargs.parse(removeDoubleHypenFromArgv()) as Args
+
 process.stdin.setMaxListeners(0)
 process.stdout.setMaxListeners(0)
 
@@ -47,7 +57,7 @@ const isYallFlag = (arg: string) =>
 const parseRunArguments = () => {
   const runArgs: string[] = []
   let takeArg = false
-  process.argv.splice(2).forEach((arg) => {
+  process.argv.forEach((arg, i) => {
     if (isFlag(arg)) {
       takeArg = !isYallFlag(arg)
     }
@@ -56,5 +66,4 @@ const parseRunArguments = () => {
   return runArgs
 }
 
-//console.log('argv', argv)
 runAll(argv._.concat(parseRunArguments()).join(' '), argv)

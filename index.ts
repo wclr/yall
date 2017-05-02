@@ -1,12 +1,12 @@
 import * as glob from 'glob'
 import { exec, execFile, spawn, ChildProcess } from 'child_process'
-import { join, dirname } from 'path'
+import { join, dirname, normalize, sep } from 'path'
 import * as fs from 'fs'
 import {
   getCacheFolder,
   removeFromCache
 } from 'yacr'
-import {  
+import {
   mkdir, symlinkDir, writeFile, remove,
   log, flatten, queue
 } from './utils'
@@ -149,10 +149,11 @@ export const runOne = (command: string, options: YallOptions) => {
         resolve({ error, folder })
         return
       }
-      const args = getAdditionalRunArgs(options, pkg)
+      const args = ([command] || [])
+        .concat(getAdditionalRunArgs(options, pkg))
+
       const file = options.npm ? 'npm' : 'yarn'
       const cmd = [file]
-        .concat(command || [])
         .concat(args).join(' ')
       const where = `${folder} (${pkg.name}@${pkg.version})`
       log.yarnStart(`Running \`${cmd}\` in ${where}`)
@@ -205,10 +206,12 @@ const getFoldersToRun = async (options: YallOptions) => {
       folders, options.npm, options.modulesFolder)
   }
   if (options.excludeFolders) {
+    const exFolders = options
+      .excludeFolders.map(f => f + sep)
+      .map(normalize)
     folders = folders.filter(folder =>
-      !options.excludeFolders
-        .reduce((doExclude, exFolder) =>
-          doExclude || folder.indexOf(exFolder) >= 0,
+      !exFolders.reduce((doExclude, exFolder) =>
+        doExclude || (folder + sep).indexOf(exFolder) >= 0,
         false)
     )
   }

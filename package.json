@@ -5,6 +5,10 @@
   "bin": {
     "yall": "yall.js"
   },
+  "scripts": {
+    "build": "tsc",
+    "prepublishOnly": "ts-clean-built && tsc"
+  },
   "license": "MIT",
   "devDependencies": {
     "@types/chalk": "^0.4.31",
