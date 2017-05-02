@@ -49,11 +49,13 @@ const findAllFolders = (folders: string[], npm: boolean, modulesFolder: string) 
   return Promise.all(folders.map(folder =>
     new Promise<string[]>((resolve, reject) => {
       glob('**/' + fileToLookup, {
+        cwd: folder,
         ignore: ['**/node_modules/**'].concat(
           modulesFolder ? `'**/${modulesFolder}/**'` : []
         )
       }, (err, paths) => {
-        err ? reject(err) : resolve(paths.map(dirname))
+        err ? reject(err) : resolve(paths.map(dirname)
+          .map(p => join(folder, p)))
       })
     })
   )).then(flatten)
@@ -201,10 +203,12 @@ export const runOne = (command: string, options: YallOptions) => {
 
 const getFoldersToRun = async (options: YallOptions) => {
   let folders = options.folders || ['.']
+  
   if (!options.here) {
     folders = await findAllFolders(
       folders, options.npm, options.modulesFolder)
   }
+  
   if (options.excludeFolders) {
     const exFolders = options
       .excludeFolders.map(f => f + sep)

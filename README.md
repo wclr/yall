@@ -14,7 +14,7 @@ Because.
 
 ## Install
 
-![npm (scoped)](https://img.shields.io/npm/v/@whitecolor/yall.svg?maxAge=86400) [![Build Status](https://travis-ci.org/whitecolor/yalc.svg?branch=master)](https://travis-ci.org/whitecolor/yall)
+![npm (scoped)](https://img.shields.io/npm/v/@whitecolor/yall.svg?maxAge=86400) [![Build Status](https://travis-ci.org/whitecolor/yall.svg?branch=master)](https://travis-ci.org/whitecolor/yall)
 
 ```
   npm i @whitecolor/yall -g
