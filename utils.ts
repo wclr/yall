@@ -3,9 +3,9 @@ import * as rimraf from 'rimraf'
 import * as chalk from 'chalk'
 
 export const colors = {
-  yarnStart: chalk.magenta,
-  yarnFinish: chalk.magenta,
+  start: chalk.magenta,
   finish: chalk.magenta,
+  warn: chalk.yellow,
   just: chalk.gray,
   error: chalk.red
 }
@@ -18,7 +18,8 @@ export const log: ColorLog
         console.log(colors[key](message))
     }), {} as any)
 
-
+export const stripAnsi = (str: string) =>
+  str.replace(/[\u001b\u009b][[()#;?]*(?:[0-9]{1,4}(?:;[0-9]{0,4})*)?[0-9A-ORZcf-nqry=><]/g, '')
 
 export const flatten = <T>(lists: T[][]): T[] =>
   lists.reduce<T[]>((flat, list) => flat.concat(list), [])

@@ -8,7 +8,7 @@ import {
 } from 'yacr'
 import {
   mkdir, symlinkDir, writeFile, remove,
-  log, flatten, queue
+  log, flatten, queue, stripAnsi
 } from './utils'
 
 export interface YarnOptions {
@@ -24,6 +24,7 @@ export interface YallOptions extends YarnOptions {
   excludeFolders: string[],
   here: string,
   linkFile: boolean
+  cleanUp?: boolean,
   watch?: boolean | string[],
   runLock: boolean | string
   runLockAll: boolean | string
@@ -50,6 +51,7 @@ const findAllFolders = (folders: string[], npm: boolean, modulesFolder: string) 
     new Promise<string[]>((resolve, reject) => {
       glob('**/' + fileToLookup, {
         cwd: folder,
+        dot: true,
         ignore: ['**/node_modules/**'].concat(
           modulesFolder ? `'**/${modulesFolder}/**'` : []
         )
@@ -132,13 +134,59 @@ type RunResult = {
   folder: string,
   code?: number,
   error?: string
-} | undefined
+}
 
 const failFastExit = (code: number) => {
   if (code) {
     log.error('Fail fast. Exiting.')
     process.exit(code)
   }
+}
+
+const spawnRun = (folder: string, file: string, args: string[]) => {
+  return new Promise<RunResult>((resolve) => {
+    const child = spawn(file, args, {
+      cwd: folder,
+      shell: true,
+      env: {
+        FORCE_COLOR: true,
+        PATH: process.env.PATH
+      }
+    })
+
+    pipeChildProcess(child)
+
+    let stderr = ''
+    child.stderr.on('data', (data) => {
+      stderr += data.toString()
+    })
+    child.on('error', (error) => {
+      resolve({ folder, error: stripAnsi(error.message) })
+    })
+
+    child.on('exit', (code) => {
+      resolve({ folder, error: code ? stripAnsi(stderr) : '', code: code })
+    })
+  })
+}
+
+const parseCacheError = (error: string, cacheFolder: string): string | undefined => {
+  const match = error
+    .match(RegExp(
+      // `(?:` +
+      // `ENOENT: no such file or directory, [\\w]+` +
+      // `|EEXIST: file already exists, [\\w]+` +
+      // `|Couldn't find a package.json file in` +
+      // `|error Error parsing JSON at` +
+      // `) ['"]` +
+      `${cacheFolder}${sep}([^${sep}]*)`.replace(/\\/g, '\\')
+    )) || error.match(/error Bad hash\. ()/)
+
+  if (match) {
+    console.log('parseCacheError', error)
+    return match[1]
+  }
+  return undefined
 }
 
 export const runOne = (command: string, options: YallOptions) => {
@@ -151,6 +199,7 @@ export const runOne = (command: string, options: YallOptions) => {
         resolve({ error, folder })
         return
       }
+      const cwd = process.cwd()
       const args = ([command] || [])
         .concat(getAdditionalRunArgs(options, pkg))
 
@@ -158,57 +207,52 @@ export const runOne = (command: string, options: YallOptions) => {
       const cmd = [file]
         .concat(args).join(' ')
       const where = `${folder} (${pkg.name}@${pkg.version})`
-      log.yarnStart(`Running \`${cmd}\` in ${where}`)
+      log.start(`Running \`${cmd}\` in ${where}`)
 
-      // this is to workaround yarn's back with file: deps      
+      if (options.cleanUp) {
+        const modulesFolder = options.modulesFolder || 'node_modules'
+        console.log(`Removing ${modulesFolder}`)
+        await remove(join(cwd, modulesFolder))
+      }
+      // this is to workaround yarn's back with `file:` deps      
       if (options.cacheFolder) {
         await removeFileDepsFromCache(pkg, options.cacheFolder)
       }
       if (options.linkFile) {
         await linkFileDeps(pkg,
-          join(process.cwd(), folder),
+          join(cwd, folder),
           options.modulesFolder
         )
       }
 
-      const child = spawn(file, args, {
-        cwd: folder,
-        shell: true,
-        env: {
-          FORCE_COLOR: true,
-          PATH: process.env.PATH
-        }
-      })
-      pipeChildProcess(child)
-      child.on('error', (error) => {
-        log.error(`Faild running in ${folder}: {err.message}`)
-        if (options.failFast) {
-          failFastExit(1)
+      spawnRun(folder, file, args).then((result) => {
+        const { code, error, folder } = result
+        if (result.code) {
+          const codeStr = (code ? `with code ${code}` : ``)
+          log[code ? 'error' : 'finish']
+            (`Finished running in ${where} ${codeStr}`)
+          options.failFast && failFastExit(1)
+        } else if (error) {
+          options.failFast && failFastExit(1)
+          log.error(`Failed running in ${folder}: ${error}`)
         } else {
-          resolve({ folder, error: error.message })
+          log.finish(`Finishing running in ${folder}.`)
         }
+        resolve(result)
       })
-      child.on('exit', (code) => {
-        const codeStr = (code ? `with code ${code}` : ``)
-        log[code ? 'error' : 'yarnFinish']
-          (`Finished running in ${where}${codeStr}`)
-        if (code && options.failFast) {
-          failFastExit(code)
-        }
-        resolve(code ? { folder, code } : undefined)
-      })
+
     })
   }
 }
 
 const getFoldersToRun = async (options: YallOptions) => {
   let folders = options.folders || ['.']
-  
+
   if (!options.here) {
     folders = await findAllFolders(
       folders, options.npm, options.modulesFolder)
   }
-  
+
   if (options.excludeFolders) {
     const exFolders = options
       .excludeFolders.map(f => f + sep)
@@ -232,13 +276,30 @@ export const runAll = async (command: string, options: YallOptions) => {
   }
   const folders = await getFoldersToRun(options)
   return queue(folders, runOne(command, options),
-    options.concurrency).then((results) => {
-      const fails = results.filter(_ => _)
+    options.concurrency).then(async (results) => {
+      const fails: RunResult[] = []
+      const isFailed = (r: RunResult) => r.error || r.code
+
+      for (let r of results) {
+        const cacheErrorDir = r.error ?
+          parseCacheError(r.error!, options.cacheFolder) : undefined
+        if (typeof cacheErrorDir === 'string') {
+          log.warn(`Try to run again in ${r.folder} because of cache error: ${r.error}`)
+          if (cacheErrorDir) {
+            try {
+              await remove(cacheErrorDir)
+            } catch (e) { }
+          }
+          r = await runOne(command, options)(r.folder)
+        }
+        isFailed(r) && fails.push(r)
+      }
+
       if (fails.length) {
         fails.forEach((result) => {
           const { error, code, folder } = result!
           if (code) {
-            log.error(`Process in ${folder} exited with error code: ${code}`)
+            log.error(`Process in ${folder} exited with error code: ${code}!`)
           }
           if (error) {
             log.error(`Process in ${folder} failed: ${error}`)

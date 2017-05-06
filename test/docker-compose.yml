@@ -1,0 +1,11 @@
+version: '2'
+
+services:
+  test: 
+    build: 
+      context: .
+      dockerfile: Dockerfile
+    working_dir: /src/test
+    volumes:
+      - ..:/src
+    command: sh -c "node start"

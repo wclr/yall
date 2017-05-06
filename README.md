@@ -11,6 +11,7 @@ Because.
 - `Yall` is like `yarn/npm` for multiple folders with `package.json`/`yarn.lock`. 
 - It looks up for folders with `package.json/yarn.lock` in the project tree and runs there given command (by default in parallel).
 - It can watch manifest/lock files and run commands automatically on change, this is useful in container based scenarios.
+- Handles [cache error which may occurr when running `yarn` in parallel](https://github.com/yarnpkg/yarn/issues/683).
 
 ## Install
 
@@ -28,7 +29,6 @@ Because.
 yall [yarn|npm command] [yarn|npm flags] [yall flags]
 ```
 
-
 Additional `yall's` option flags:
 
 - `concurrency` (`con`) - max count of tasks to run in parallel.
@@ -39,6 +39,7 @@ Additional `yall's` option flags:
 - `link-files` - create symlinks for `file:` dependencies (will not touch [`yalc`](http://github.com/whitecolor/yalc) dependencies).
 - `npm` - run `npm` command, alternativly to `yarn`
 - `watch` (TO IMPLEMENT) - watch mode, will watch for changes of `yarn.lock` (or `package.json` in case of `npm`) and run command in folder where file changed. Periodically rescans folders.
+- `clean-up` - will clean-up/remove `node_modules` before command run
 
 
 ## Licence

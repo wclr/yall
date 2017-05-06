@@ -4,6 +4,7 @@ import { YallOptions, runAll } from '.'
 
 const yallFlags = [
   'concurrency', 'con',
+  'clean-up',
   'fail-fast', 'npm',
   'folders', 'exclude-folders', 'here',
   'link-file', 'link-files',
@@ -49,6 +50,7 @@ const argv = yargs.parse(removeDoubleHypenFromArgv()) as Args
 
 process.stdin.setMaxListeners(0)
 process.stdout.setMaxListeners(0)
+process.setMaxListeners(0)
 
 const isFlag = (arg: string) => arg.match(/^--?\w/)
 const isYallFlag = (arg: string) =>
