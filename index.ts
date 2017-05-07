@@ -12,7 +12,7 @@ import {
   timeout, getHash
 } from './utils'
 
-const defaultRunLockfile = '.yall.lock'
+const defaultLockfile = '.yall.lock'
 
 export interface YarnOptions {
   cacheFolder: string,
@@ -274,7 +274,7 @@ export const runAll = async (command: string, options: YallOptions) => {
   }
   const cwd = options.cwd || process.cwd()
   const runLockfile = typeof options.lock === 'string' ?
-    (options.lock || defaultRunLockfile) : ''
+    (options.lock || defaultLockfile) : ''
   if (runLockfile) {
     await writeFile(join(cwd, runLockfile))
   }
