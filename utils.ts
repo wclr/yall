@@ -1,6 +1,7 @@
 import * as fs from 'fs'
 import * as rimraf from 'rimraf'
 import * as chalk from 'chalk'
+import * as crypto from 'crypto'
 
 export const colors = {
   start: chalk.magenta,
@@ -84,3 +85,16 @@ export function queue<T, U>(
     Array.from(Array(concurrency).keys()).forEach(next)
   })
 }
+
+export const getHash = (filePath: string) =>
+  new Promise<string>((resolve, reject) => {
+    var stream = fs.createReadStream(filePath)
+    var md5sum = crypto.createHash("md5")
+    stream.on('data', (data: string) =>
+      md5sum.update(data)
+    )
+    stream.on('error', () => resolve(''))
+    stream.on('end', () =>
+      resolve(md5sum.digest('hex'))
+    )
+  })

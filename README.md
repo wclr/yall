@@ -43,7 +43,7 @@ Additional `yall's` option flags:
 - `clean-up` - will clean-up/remove `node_modules` before command run
 - `lock` - will create `.yall.lock` file (or file with specified name) while running commands and remove it after everything is done.
 - `watch` - watch mode, will watch for changes of `yarn.lock` (`package.json` in case of `npm` or custom list of files specified) and run command in folder where file changed, it periodically rescans folders for new files
-
+- `watch-content` - will check file content for change, not just all change events.
 
 ## Licence
 

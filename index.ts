@@ -9,7 +9,7 @@ import {
 import {
   mkdir, symlinkDir, writeFile, remove,
   log, flatten, queue, stripAnsi,
-  timeout
+  timeout, getHash
 } from './utils'
 
 const defaultRunLockfile = '.yall.lock'
@@ -112,7 +112,7 @@ const getPackageFileDeps = (pkg: PackageManifest, excludeYalc: boolean) =>
 
 const removeFileDepsFromCache = (pkg: PackageManifest,
   cacheFolder: string) => {
-  const fileDeps = getPackageFileDeps(pkg, false).map(dep => dep.name)  
+  const fileDeps = getPackageFileDeps(pkg, false).map(dep => dep.name)
   return removeFromCache(fileDeps, { cacheFolder })
 }
 
@@ -183,7 +183,6 @@ const parseCacheError = (error: string, cacheFolder: string): string | undefined
     )) || error.match(/error Bad hash\. ()/)
 
   if (match) {
-    console.log('parseCacheError', error)
     return match[1]
   }
   return undefined
@@ -215,7 +214,7 @@ export const runOne = (command: string, options: YallOptions) => {
         await remove(join(cwd, modulesFolder))
       }
       // this is to workaround yarn's back with `file:` deps      
-      if (options.cacheFolder) {        
+      if (options.cacheFolder) {
         await removeFileDepsFromCache(pkg, options.cacheFolder)
       }
       if (options.linkFile) {
@@ -323,43 +322,69 @@ export const runAll = async (command: string, options: YallOptions) => {
     })
 }
 
-export const watchAll = async (command: string, options: YallOptions, watchFiles: string[] = []) => {
+export const watchAll = async (command: string,
+  options: YallOptions,
+  watchFiles: string[] | undefined, watchContentFiles: string[] | undefined) => {
   options = Object.assign({}, defaultOptions, options)
+
   if (!options.npm && !options.cacheFolder) {
     options.cacheFolder = await getCacheFolder()
   }
   const cwd = options.cwd || process.cwd()
-
-  if (!watchFiles.length) {
-    watchFiles = options.npm ? ['package.json'] : ['yarn.lock']
-  }
-  log.warn('Watching for changes:', watchFiles.join(', '))
+  let filesToWatch: { file: string, content: boolean }[] = []
+  filesToWatch = (watchFiles || []).map(file => ({ file, content: false })).concat(
+    (watchContentFiles || []).map(file => ({ file, content: true }))
+  )
+  if (!filesToWatch.length) {
+    filesToWatch = options.npm ? [{
+      file: 'package.json', content: !!watchContentFiles
+    }] : [{
+      file: 'yarn.lock', content: !!watchContentFiles
+    }]
+  }  
+  log.warn('Watching for changes:', filesToWatch
+    .map(({ file, content }) => `${file}` + (content ? ` (content)` : '')).join(', '))
   const changedFolders: string[] = []
-  const watchedFiles: string[] = []
-
+  const watchedFiles: { [name: string]: string } = {}
+  const addToChanged = (folder: string) =>
+    changedFolders.indexOf(folder)
+      ? changedFolders.push(folder) : ''
   const putHandlers = async () => {
     const folders = await getFoldersToRun(options)
     folders.forEach(folder => {
-      watchFiles
-        .map(file => join(folder, file))
-        .filter(file => watchedFiles.indexOf(file) < 0)
-        .forEach((file) => {
-          watchedFiles.push(file)
-          fs.watchFile(file, { persistent: true }, (curr) => {
-            log.warn('Watched file change:', file)
-            if (changedFolders.indexOf(folder) < 0) {
-              changedFolders.push(folder)
+      filesToWatch
+        .map(({ file, content }) => ({ content, file: join(folder, file) }))
+        .filter(({ file }) => !watchedFiles[file])
+        .forEach(async ({ file, content }) => {
+          const hash = await getHash(file)
+          if (!hash) { return }
+          watchedFiles[file] = hash
+          addToChanged(folder)
+          fs.watchFile(file, { persistent: true }, async (curr) => {
+            const hash = await getHash(file)
+            if (!hash) {
+              log.warn(`Could not get hash of file ${file}, removing from watch.`)
+              delete watchedFiles[file]
+              return
             }
+            if (content && hash === watchedFiles[file]) {
+              return
+            }
+            watchedFiles[file] = hash
+            log.warn('File changed:', file)
+            addToChanged(folder)
           })
         })
     })
     return folders
   }
-  await putHandlers().then(folders => changedFolders.splice(0, 0, ...folders))
+  await putHandlers()
   const checkChanged = async () => {
     let p: Promise<any> = timeout(2500)
     if (changedFolders.length) {
       p = runAll(command, Object.assign({}, options, {
+        excludeFolders: [],
+        includeFolders: [],
         here: true,
         folders: changedFolders.concat([])
       }))

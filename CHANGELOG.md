@@ -1,6 +1,9 @@
 # Yall changelog
 
-## 1.0.0.pre.2
+## 1.0.0.pre.3 
+- `--watch-content` option
+
+## 1.0.0.pre.2 (2017-05-07)
 - `--dot-folders` option
 - `--include-folders` option
 - `--clean-up` option

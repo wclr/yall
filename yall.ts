@@ -8,7 +8,7 @@ const yallFlags = [
   'fail-fast', 'npm',
   'folders', 'exclude-folders', 'include-folders', 'here',
   'link-file', 'link-files',
-  'watch',
+  'watch', 'watch-content',
   'cwd',
   'dot-folders',
   'lock', 'lock-each'
@@ -18,6 +18,7 @@ const cliCommand = 'yall'
 
 interface Args extends YallOptions {
   watch?: string[],
+  watchContent?: string[],
   _: string[]
 }
 
@@ -44,7 +45,10 @@ yargs
     type: 'boolean'
   })
   .string(['lock', 'lock-each'])
-  .array(['folders', 'exclude-folders', 'include-folders', 'watch'])
+  .array([
+    'folders', 'exclude-folders', 'include-folders',
+    'watch', 'watch-content'
+  ])
   .boolean(['here', 'fail-fast', 'npm', 'dot-folders'])
   .help(true)
   .argv as Args
@@ -73,8 +77,8 @@ const parseRunArguments = () => {
 
 const command = argv._.concat(parseRunArguments()).join(' ')
 
-if (argv.watch) {
-  watchAll(command, argv, argv.watch)
+if (argv.watch || argv.watchContent) {
+  watchAll(command, argv, argv.watch, argv.watchContent)
 } else {
   runAll(command, argv)
 }
