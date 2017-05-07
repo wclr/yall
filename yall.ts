@@ -1,20 +1,23 @@
 #!/usr/bin/env node
 import * as yargs from 'yargs'
-import { YallOptions, runAll } from '.'
+import { YallOptions, runAll, watchAll } from '.'
 
 const yallFlags = [
   'concurrency', 'con',
   'clean-up',
   'fail-fast', 'npm',
-  'folders', 'exclude-folders', 'here',
+  'folders', 'exclude-folders', 'include-folders', 'here',
   'link-file', 'link-files',
   'watch',
-  'run-lock', 'run-lock-all'
+  'cwd',
+  'dot-folders',
+  'lock', 'lock-each'
 ]
 
 const cliCommand = 'yall'
 
 interface Args extends YallOptions {
+  watch?: string[],
   _: string[]
 }
 
@@ -40,9 +43,9 @@ yargs
     describe: 'Create symlinks for `file:` dependencies',
     type: 'boolean'
   })
-  .string(['run-lock', 'run-lock-nested'])
-  .array(['folders', 'exclude-folders', 'watch'])
-  .boolean(['here', 'fail-fast', 'npm'])
+  .string(['lock', 'lock-each'])
+  .array(['folders', 'exclude-folders', 'include-folders', 'watch'])
+  .boolean(['here', 'fail-fast', 'npm', 'dot-folders'])
   .help(true)
   .argv as Args
 
@@ -68,4 +71,11 @@ const parseRunArguments = () => {
   return runArgs
 }
 
-runAll(argv._.concat(parseRunArguments()).join(' '), argv)
+const command = argv._.concat(parseRunArguments()).join(' ')
+
+if (argv.watch) {
+  watchAll(command, argv, argv.watch)
+} else {
+  runAll(command, argv)
+}
+

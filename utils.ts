@@ -10,12 +10,13 @@ export const colors = {
   error: chalk.red
 }
 
-type ColorLog = {[key in keyof typeof colors]: (msg: string) => void}
+type ColorLog = {[key in keyof typeof colors]:
+  (colorMessage: string, ...items: string[]) => void}
 export const log: ColorLog
   = Object.keys(colors).reduce<ColorLog>((obj, key: keyof typeof colors) =>
     Object.assign(obj, {
-      [key]: (message: string) =>
-        console.log(colors[key](message))
+      [key]: (colorMessage: string, ...items: string[]) =>
+        console.log(colors[key](colorMessage), ...items)
     }), {} as any)
 
 export const stripAnsi = (str: string) =>
@@ -45,6 +46,11 @@ export const symlinkDir = (srcpath: string, dstpath: string) =>
     fs.symlink(srcpath, dstpath, 'dir',
       (err) => err ? reject(err) : resolve()
     )
+  })
+
+export const timeout = (ms: number) =>
+  new Promise((resolve, reject) => {
+    setTimeout(() => resolve(), ms)
   })
 
 export const writeFile = (filePath: string, data = '') =>
