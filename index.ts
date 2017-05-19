@@ -25,10 +25,11 @@ export interface YallOptions extends YarnOptions {
   npm?: boolean,
   cwd?: string,
   dotFolders?: boolean,
+  in?: string[],
   folders?: string[],
   excludeFolders?: string[],
   includeFolders?: string[],
-  here?: string,
+  here?: boolean,
   linkFile?: boolean
   cleanUp?: boolean,
   lock?: boolean | string
@@ -272,6 +273,10 @@ export const runAll = async (command: string, options: YallOptions) => {
   if (!options.npm && !options.cacheFolder) {
     options.cacheFolder = await getCacheFolder()
   }
+  if (options.in) {
+    options.folders = options.in
+    options.here = true
+  }
   const cwd = options.cwd || process.cwd()
   const runLockfile = typeof options.lock === 'string' ?
     (options.lock || defaultLockfile) : ''
@@ -280,23 +285,20 @@ export const runAll = async (command: string, options: YallOptions) => {
   }
   const folders = await getFoldersToRun(options)
 
-  return queue(folders, runOne(command, options),
-    options.concurrency!).then(async (results) => {
+  return queue(folders, runOne(command, options), options.concurrency!)
+    .then(async (results) => {
       const fails: RunResult[] = []
       const isFailed = (r: RunResult) => r.error || r.code
 
       for (let r of results) {
         const cacheErrorDir = r.error ?
           parseCacheError(r.error!, options.cacheFolder) : undefined
-        if (typeof cacheErrorDir === 'string') {
-          log.warn(`Try to run again in ${r.folder} because of cache error: ${r.error}`)
-          if (cacheErrorDir) {
-            try {
-              await remove(cacheErrorDir)
-            } catch (e) { }
-          }
-          r = await runOne(command, options)(r.folder)
+        if (cacheErrorDir) {
+          log.warn(`Removing error cache dir \`${cacheErrorDir}\``)
+          await remove(cacheErrorDir)
         }
+        log.warn(`Try to run again sequentially in \`${r.folder}\` because of error: ${r.error}`)
+        r = await runOne(command, options)(r.folder)
         isFailed(r) && fails.push(r)
       }
 
@@ -304,10 +306,9 @@ export const runAll = async (command: string, options: YallOptions) => {
         fails.forEach((result) => {
           const { error, code, folder } = result!
           if (code) {
-            log.error(`Process in ${folder} exited with error code: ${code}!`)
-          }
-          if (error) {
-            log.error(`Process in ${folder} failed: ${error}`)
+            log.error(`Process in \`${folder}\` exited with error code: ${code}: ${error}`)
+          } else if (error) {
+            log.error(`Process in \`${folder}\` failed: ${error}`)
           }
         })
         log.error('Yall done with errors!')
@@ -341,14 +342,18 @@ export const watchAll = async (command: string,
     }] : [{
       file: 'yarn.lock', content: !!watchContentFiles
     }]
-  }  
-  log.warn('Watching for changes:', filesToWatch
-    .map(({ file, content }) => `${file}` + (content ? ` (content)` : '')).join(', '))
+  }
+
   const changedFolders: string[] = []
   const watchedFiles: { [name: string]: string } = {}
   const addToChanged = (folder: string) =>
     changedFolders.indexOf(folder)
       ? changedFolders.push(folder) : ''
+  const outputWatchMessage = () =>
+    log.warn('Watching for changes:', filesToWatch
+      .map(({ file, content }) =>
+        `${file}` + (content ? ` (content)` : '')).join(', ')
+    )
   const putHandlers = async () => {
     const folders = await getFoldersToRun(options)
     folders.forEach(folder => {
@@ -387,7 +392,7 @@ export const watchAll = async (command: string,
         includeFolders: [],
         here: true,
         folders: changedFolders.concat([])
-      }))
+      })).then(outputWatchMessage)
       changedFolders.splice(0, changedFolders.length)
     }
     p.then(putHandlers)

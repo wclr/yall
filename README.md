@@ -11,7 +11,7 @@ Because.
 - `Yall` is like `yarn/npm` for multiple folders with `package.json`/`yarn.lock`. 
 - It looks up for folders with `package.json/yarn.lock` in the project tree and runs there given command (by default in parallel).
 - It can watch manifest/lock files and run commands automatically on change, this is useful in container based scenarios.
-- Handles [cache error which may occurr when running `yarn` in parallel](https://github.com/yarnpkg/yarn/issues/683).
+- Can handle [cache error which may occurr when running `yarn` commands concurrently](https://github.com/yarnpkg/yarn/issues/683).
 
 ## Install
 
@@ -38,6 +38,7 @@ Additional `yall's` option flags:
 - `exclude-folders` - folders where not to run (including nested)
 - `include-folders` - additional folders to include (for example: explit dot folders).
 - `here` - will run only in current folder, if `folders` specified will run in those folders, but without nested
+- `in` - shortcut for  `--include-folders` plus `--here`
 - `link-files` - create symlinks for `file:` dependencies (will not touch [`yalc`](http://github.com/whitecolor/yalc) dependencies)
 - `npm` - run `npm` command, alternativly to `yarn`
 - `clean-up` - will clean-up/remove `node_modules` before command run

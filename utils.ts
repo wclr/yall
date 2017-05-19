@@ -88,8 +88,8 @@ export function queue<T, U>(
 
 export const getHash = (filePath: string) =>
   new Promise<string>((resolve, reject) => {
-    var stream = fs.createReadStream(filePath)
-    var md5sum = crypto.createHash("md5")
+    const stream = fs.createReadStream(filePath)
+    const md5sum = crypto.createHash("md5")
     stream.on('data', (data: string) =>
       md5sum.update(data)
     )

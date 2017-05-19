@@ -1,7 +1,9 @@
 # Yall changelog
 
-## 1.0.0.pre.3 
+## 1.0.0.pre.3 (2017-05-19)
 - `--watch-content` option
+- `--in` option
+- retry to run again on any error
 
 ## 1.0.0.pre.2 (2017-05-07)
 - `--dot-folders` option

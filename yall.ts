@@ -6,7 +6,7 @@ const yallFlags = [
   'concurrency', 'con',
   'clean-up',
   'fail-fast', 'npm',
-  'folders', 'exclude-folders', 'include-folders', 'here',
+  'in', 'folders', 'exclude-folders', 'include-folders', 'here',
   'link-file', 'link-files',
   'watch', 'watch-content',
   'cwd',
@@ -46,7 +46,7 @@ yargs
   })
   .string(['lock', 'lock-each'])
   .array([
-    'folders', 'exclude-folders', 'include-folders',
+    'folders', 'exclude-folders', 'include-folders', 'in',
     'watch', 'watch-content'
   ])
   .boolean(['here', 'fail-fast', 'npm', 'dot-folders'])
