@@ -1,5 +1,12 @@
 # Yall changelog
 
+## 1.0.0.pre.5 (2017-05-19)
+- fix error exit
+
+## 1.0.0.pre.4 (2017-05-19)
+- fix retry bug 
+- fix cache dir strip ansi bug
+
 ## 1.0.0.pre.3 (2017-05-19)
 - `--watch-content` option
 - `--in` option

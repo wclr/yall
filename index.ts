@@ -1,5 +1,5 @@
 import * as glob from 'glob'
-import { exec, execFile, spawn, ChildProcess } from 'child_process'
+import { execSync, spawn, ChildProcess } from 'child_process'
 import { join, resolve, dirname, normalize, sep } from 'path'
 import * as fs from 'fs'
 import {
@@ -21,7 +21,8 @@ export interface YarnOptions {
 
 export interface YallOptions extends YarnOptions {
   concurrency?: number
-  failFast?: boolean
+  failFast?: boolean,
+  noExitOnError?: boolean
   npm?: boolean,
   cwd?: string,
   dotFolders?: boolean,
@@ -113,7 +114,7 @@ const getPackageFileDeps = (pkg: PackageManifest, excludeYalc: boolean) =>
 
 const removeFileDepsFromCache = (pkg: PackageManifest,
   cacheFolder: string) => {
-  const fileDeps = getPackageFileDeps(pkg, false).map(dep => dep.name)
+  const fileDeps = getPackageFileDeps(pkg, false).map(dep => dep.name)  
   return removeFromCache(fileDeps, { cacheFolder })
 }
 
@@ -214,10 +215,10 @@ export const runOne = (command: string, options: YallOptions) => {
         log.warn(`Removing ${modulesFolder} in ${where}`)
         await remove(join(cwd, modulesFolder))
       }
-      // this is to workaround yarn's back with `file:` deps      
-      if (options.cacheFolder) {
+      // this is to workaround yarn's back with `file:` deps                  
+      if (options.cacheFolder) {        
         await removeFileDepsFromCache(pkg, options.cacheFolder)
-      }
+      }      
       if (options.linkFile) {
         await linkFileDeps(pkg,
           join(cwd, folder),
@@ -269,10 +270,10 @@ const getFoldersToRun = async (options: YallOptions) => {
 }
 
 export const runAll = async (command: string, options: YallOptions) => {
-  options = Object.assign({}, defaultOptions, options)
+  options = Object.assign({}, defaultOptions, options)  
   if (!options.npm && !options.cacheFolder) {
-    options.cacheFolder = await getCacheFolder()
-  }
+    options.cacheFolder = stripAnsi(await getCacheFolder())
+  }  
   if (options.in) {
     options.folders = options.in
     options.here = true
@@ -283,8 +284,7 @@ export const runAll = async (command: string, options: YallOptions) => {
   if (runLockfile) {
     await writeFile(join(cwd, runLockfile))
   }
-  const folders = await getFoldersToRun(options)
-
+  const folders = await getFoldersToRun(options)  
   return queue(folders, runOne(command, options), options.concurrency!)
     .then(async (results) => {
       const fails: RunResult[] = []
@@ -297,8 +297,10 @@ export const runAll = async (command: string, options: YallOptions) => {
           log.warn(`Removing error cache dir \`${cacheErrorDir}\``)
           await remove(cacheErrorDir)
         }
-        log.warn(`Try to run again sequentially in \`${r.folder}\` because of error: ${r.error}`)
-        r = await runOne(command, options)(r.folder)
+        if (isFailed(r)) {
+          log.warn(`Try to run again sequentially in \`${r.folder}\` because of error: ${r.error}`)
+          r = await runOne(command, options)(r.folder)
+        }
         isFailed(r) && fails.push(r)
       }
 
@@ -311,7 +313,10 @@ export const runAll = async (command: string, options: YallOptions) => {
             log.error(`Process in \`${folder}\` failed: ${error}`)
           }
         })
-        log.error('Yall done with errors!')
+        log.error('Yall done with errors!')        
+        if (!options.noExitOnError) {
+          process.exit(1)
+        }
       } else {
         log.finish('Yall done fine!')
       }
@@ -327,9 +332,8 @@ export const watchAll = async (command: string,
   options: YallOptions,
   watchFiles: string[] | undefined, watchContentFiles: string[] | undefined) => {
   options = Object.assign({}, defaultOptions, options)
-
-  if (!options.npm && !options.cacheFolder) {
-    options.cacheFolder = await getCacheFolder()
+  if (!options.npm && !options.cacheFolder) {    
+    options.cacheFolder = stripAnsi(await getCacheFolder())
   }
   const cwd = options.cwd || process.cwd()
   let filesToWatch: { file: string, content: boolean }[] = []
@@ -388,6 +392,7 @@ export const watchAll = async (command: string,
     let p: Promise<any> = timeout(2500)
     if (changedFolders.length) {
       p = runAll(command, Object.assign({}, options, {
+        noExitOnError: true,
         excludeFolders: [],
         includeFolders: [],
         here: true,

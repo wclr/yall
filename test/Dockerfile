@@ -12,8 +12,9 @@ RUN apk update && apk upgrade && apk add --no-cache tar  && \
   curl -o- -L https://yarnpkg.com/install.sh | sh && \
   apk del .yarn-deps && \
   apk del tar
+
 # fix yarn link bin creation concurrency
-RUN sed -i -e 's/})(), 4);/})(), 1);/g' /root/.yarn/lib/package-linker.js
+RUN sed -i -e 's/})(), 4);/})(), 1);/g' /root/.yarn/lib/yarn-cli.js
 ENV PATH /root/.yarn/bin:$PATH
 RUN yarn config set no-progress true
 

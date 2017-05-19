@@ -1,6 +1,6 @@
 {
   "name": "@whitecolor/yall",
-  "version": "1.0.0-pre.2",
+  "version": "1.0.0-pre.5",
   "main": "index.js",
   "bin": {
     "yall": "yall.js"
@@ -8,7 +8,7 @@
   "scripts": {
     "build": "tsc",
     "test": "docker-compose -f test/docker-compose.yml run --rm test",
-    "prepublishOnly": "ts-clean-built && tsc"
+    "prepublishOnly": "ts-clean-built && tsc && yarn test"
   },
   "license": "MIT",
   "devDependencies": {
