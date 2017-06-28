@@ -1,5 +1,5 @@
 import * as glob from 'glob'
-import { execSync, spawn, ChildProcess } from 'child_process'
+import { spawn, ChildProcess } from 'child_process'
 import { join, resolve, dirname, normalize, sep } from 'path'
 import * as fs from 'fs'
 import {
@@ -178,14 +178,14 @@ const spawnRun = (folder: string, file: string, args: string[]) => {
   })
 }
 
-const parseCacheError = (error: string, cacheFolder: string): string | undefined => {
+const parseCacheDirFromError = (error: string, cacheFolder: string): string | undefined => {
   const match = error
     .match(RegExp(
-      `${cacheFolder}${sep}([^${sep}]*)`.replace(/\\/g, '\\\\')
+      `${cacheFolder}${sep}([^${sep} "]*)`.replace(/\\/g, '\\\\')
     )) || error.match(/error Bad hash\. ()/)
 
   if (match) {
-    return match[1]
+    return match[1] ? join(cacheFolder, match[1]) : match[1]
   }
   return undefined
 }
@@ -247,8 +247,7 @@ export const runOne = (command: string, options: YallOptions) => {
 }
 
 const getFoldersToRun = async (options: YallOptions) => {
-  let folders = (options.folders || ['.'])
-    .concat(options.includeFolders || [])
+  let folders = (options.folders || ['.'])    
 
   if (!options.here) {
     folders = await findAllFolders(
@@ -266,6 +265,8 @@ const getFoldersToRun = async (options: YallOptions) => {
           false)
       )
   }
+  folders = folders.concat(options.includeFolders || [])
+  
   return Promise.resolve(folders)
 }
 
@@ -288,14 +289,17 @@ export const runAll = async (command: string, options: YallOptions) => {
   return queue(folders, runOne(command, options), options.concurrency!)
     .then(async (results) => {
       const fails: RunResult[] = []
-      const isFailed = (r: RunResult) => r.error || r.code
-
+      const isFailed = (r: RunResult) => r.error || r.code      
       for (let r of results) {
         const cacheErrorDir = r.error ?
-          parseCacheError(r.error!, options.cacheFolder) : undefined
+          parseCacheDirFromError(r.error!, options.cacheFolder) : undefined
         if (cacheErrorDir) {
-          log.warn(`Removing error cache dir \`${cacheErrorDir}\``)
-          await remove(cacheErrorDir)
+          log.warn(`Removing error cache dir ${cacheErrorDir}`)
+          try {
+            await remove(cacheErrorDir)  
+          } catch (e) {
+            log.error(`Error happend while removing ${cacheErrorDir}`, e)
+          }          
         }
         if (isFailed(r)) {
           log.warn(`Try to run again sequentially in \`${r.folder}\` because of error: ${r.error}`)

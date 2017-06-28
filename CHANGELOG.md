@@ -1,5 +1,9 @@
 # Yall changelog
 
+## 1.0.0.pre.6 (2017-06-28)
+- fix `includeFolders` with `excludeFolders` order
+- fix removal from cache errored folders (that didn't actually work)
+
 ## 1.0.0.pre.5 (2017-05-19)
 - fix error exit
 
