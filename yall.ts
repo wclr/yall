@@ -3,15 +3,21 @@ import * as yargs from 'yargs'
 import { YallOptions, runAll, watchAll } from '.'
 
 const yallFlags = [
+  'debug',  
   'concurrency', 'con',
   'clean-up',
   'fail-fast', 'npm',
   'in', 'folders', 'exclude-folders', 'include-folders', 'here',
   'link-file', 'link-files',
   'watch', 'watch-content',
+  'force',
+  'force-local',
+  'force-remote',
   'cwd',
   'dot-folders',
-  'lock', 'lock-each'
+  'lock', 'lock-each',
+  'cache-folder',  
+  'separate-cache-folders', 'sep-cache'
 ]
 
 const cliCommand = 'yall'
@@ -44,12 +50,17 @@ yargs
     describe: 'Create symlinks for `file:` dependencies',
     type: 'boolean'
   })
+  .options('separate-cache-folders', {
+    alias: 'sep-cache',
+    describe: 'Seed to make a separate cache folder for each installation.',
+    type: 'string'
+  })    
   .string(['lock', 'lock-each'])
   .array([
     'folders', 'exclude-folders', 'include-folders', 'in',
     'watch', 'watch-content'
   ])
-  .boolean(['here', 'fail-fast', 'npm', 'dot-folders'])
+  .boolean(['force', 'debug', 'here', 'fail-fast', 'npm', 'dot-folders'])
   .help(true)
   .argv as Args
 
@@ -76,10 +87,20 @@ const parseRunArguments = () => {
 }
 
 const command = argv._.concat(parseRunArguments()).join(' ')
+const options = argv
+
+if (options.in) {
+  options.folders = options.in
+  options.here = true
+}
+
+options.cwd = options.cwd || process.cwd()
+
+const version = require('./package.json').version
+console.log(`yall v${version}`)
 
 if (argv.watch || argv.watchContent) {
   watchAll(command, argv, argv.watch, argv.watchContent)
 } else {
   runAll(command, argv)
 }
-

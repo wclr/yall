@@ -1,5 +1,13 @@
 # Yall changelog
 
+## 1.0.0.pre.7
+- disable concurrency by default
+- `separate-cache-folder` (`sep-cache`) option
+- fix link-files for yarn 1.0
+- `debug` option
+- replace `glob` find with custom dir scan
+- `force-local` and `force-remote` options
+
 ## 1.0.0.pre.6 (2017-06-28)
 - fix `includeFolders` with `excludeFolders` order
 - fix removal from cache errored folders (that didn't actually work)

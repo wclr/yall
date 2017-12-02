@@ -54,11 +54,41 @@ export const timeout = (ms: number) =>
     setTimeout(() => resolve(), ms)
   })
 
+export const readFile = (filePath: string) =>
+  new Promise<string>((resolve, reject) => {
+    fs.readFile(filePath, 'utf-8',
+      (err, data) => err ? reject(err) : resolve(data)
+    )
+  })
+
+export const readdir = (dirpath: string) =>
+  new Promise<string[]>((resolve, reject) => {
+    fs.readdir(dirpath,
+      (err, data) => err ? reject(err) : resolve(data)
+    )
+  })
+
+export const stat = (filepath: string) =>
+  new Promise<fs.Stats>((resolve, reject) => {
+    fs.stat(filepath,
+      (err, data) => err ? reject(err) : resolve(data)
+    )
+  })
+
 export const writeFile = (filePath: string, data = '') =>
   new Promise((resolve, reject) => {
-    fs.writeFile(filePath, data, 'utf-8',
+    fs.writeFile(filePath, data,
       (err) => err ? reject(err) : resolve()
     )
+  })
+
+export const ensureDir = (dirPath: string) =>
+  new Promise((resolve, reject) => {
+    fs.access(dirPath, (err) => {
+      err ? fs.mkdir(dirPath,
+        (err) => err ? reject(err) : resolve()
+      ) : resolve(dirPath)
+    })
   })
 
 export function queue<T, U>(
@@ -86,7 +116,10 @@ export function queue<T, U>(
   })
 }
 
-export const getHash = (filePath: string) =>
+export const getStringHash = (str: string) =>
+  crypto.createHash('md5').update(str).digest('hex')
+
+export const getFileContentHash = (filePath: string) =>
   new Promise<string>((resolve, reject) => {
     const stream = fs.createReadStream(filePath)
     const md5sum = crypto.createHash("md5")
