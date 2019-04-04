@@ -3,35 +3,47 @@ import * as yargs from 'yargs'
 import { YallOptions, runAll, watchAll } from '.'
 
 const yallFlags = [
-  'debug',  
-  'concurrency', 'con',
+  'debug',
+  'concurrency',
+  'con',
   'clean-up',
-  'fail-fast', 'npm',
-  'in', 'folders', 'exclude-folders', 'include-folders', 'here',
-  'link-file', 'link-files',
-  'watch', 'watch-content',
+  'fail-fast',
+  'npm',
+  'in',
+  'folders',
+  'exclude-folders',
+  'include-folders',
+  'here',
+  'link-file',
+  'link-files',
+  'watch',
+  'watch-content',
   'force',
   'force-local',
   'force-remote',
   'cwd',
   'dot-folders',
-  'lock', 'lock-each',
-  'cache-folder',  
-  'separate-cache-folders', 'sep-cache'
+  'lock',
+  'lock-each',
+  'cache-folder',
+  'only-workspaces',
+  'separate-cache-folders',
+  'skip-first-run',
+  'sep-cache'
 ]
 
 const cliCommand = 'yall'
 
 interface Args extends YallOptions {
-  watch?: string[],
-  watchContent?: string[],
+  watch?: string[]
+  watchContent?: string[]
   _: string[]
 }
 
 const removeDoubleHypenFromArgv = () => {
   const rev = process.argv.concat([]).reverse()
-  rev.forEach((arg, i) =>
-    arg === '--' && process.argv.splice(rev.length - i - 1, 1)
+  rev.forEach(
+    (arg, i) => arg === '--' && process.argv.splice(rev.length - i - 1, 1)
   )
   return process.argv.slice(2)
 }
@@ -45,6 +57,11 @@ yargs
     describe: 'Number of concurrenlty running commands',
     default: 10
   })
+  .option('interval', {
+    type: 'number',
+    describe: 'Watch pooling interval, in ms',
+    default: 1000
+  })
   .options('link-file', {
     alias: 'link-files',
     describe: 'Create symlinks for `file:` dependencies',
@@ -54,15 +71,26 @@ yargs
     alias: 'sep-cache',
     describe: 'Seed to make a separate cache folder for each installation.',
     type: 'string'
-  })    
+  })
   .string(['lock', 'lock-each'])
   .array([
-    'folders', 'exclude-folders', 'include-folders', 'in',
-    'watch', 'watch-content'
+    'folders',
+    'exclude-folders',
+    'include-folders',
+    'in',
+    'watch',
+    'watch-content'
   ])
-  .boolean(['force', 'debug', 'here', 'fail-fast', 'npm', 'dot-folders'])
-  .help(true)
-  .argv as Args
+  .boolean([
+    'force',
+    'debug',
+    'here',
+    'fail-fast',
+    'npm',
+    'dot-folders',
+    'only-workspaces'
+  ])
+  .help(true).argv as Args
 
 const argv = yargs.parse(removeDoubleHypenFromArgv()) as Args
 
@@ -98,6 +126,10 @@ options.cwd = options.cwd || process.cwd()
 
 const version = require('./package.json').version
 console.log(`yall v${version}`)
+
+if (argv.onlyWorkspaces) {
+  console.log('Running only for Yarn workspaces.')
+}
 
 if (argv.watch || argv.watchContent) {
   watchAll(command, argv, argv.watch, argv.watchContent)
