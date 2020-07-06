@@ -1,8 +1,8 @@
 import { spawn, ChildProcess } from 'child_process'
-import { basename, join, resolve, dirname, normalize, sep } from 'path'
+import { basename, join, dirname, sep } from 'path'
 import { tmpdir } from 'os'
 import * as fs from 'fs'
-import { getCacheDir, removeFromCache } from 'yacr'
+import { getCacheDir } from 'yacr'
 import * as minimatch from 'minimatch'
 import {
   mkdir,
@@ -19,13 +19,13 @@ import {
   ensureDir,
   readFile,
   stat,
-  readdir
+  readdir,
 } from './utils'
 
 const defaultLockfile = '.yall.lock'
 const defaultYarnCacheDir = getCacheDir()
   .then(stripAnsi)
-  .catch(err => '')
+  .catch(() => '')
 
 const cacheDirs: { [hash: string]: string } = {}
 
@@ -62,15 +62,15 @@ export interface YallOptions extends YarnOptions {
 }
 
 const defaultOptions = {
-  concurrency: 1
+  concurrency: 1,
 }
 
 type PackageDependencies = { [name: string]: string }
 
 interface PackageManifest {
-  name: string
-  version: string
-  workspaces: string[]
+  name?: string
+  version?: string
+  workspaces?: string[]
   dependencies?: PackageDependencies
   devDependencies?: PackageDependencies
   yarn?: {
@@ -94,7 +94,7 @@ const findAllFolders = (folders: string[], options: YallOptions) => {
     )
   }
 
-  const statErrorToDirectory = (err: any) => ({ isDirectory: () => true })
+  const statErrorToDirectory = () => ({ isDirectory: () => true })
   const isFolderToScan = async (folder: string) =>
     (await stat(folder).catch(statErrorToDirectory)).isDirectory() &&
     !isExcluded(folder)
@@ -104,8 +104,8 @@ const findAllFolders = (folders: string[], options: YallOptions) => {
       : folder === '.' || (await isFolderToScan(folder))
       ? Promise.all(
           (await readdir(folder).catch(() => [] as string[]))
-            .map(file => join(folder, file))
-            .map(dir => listFolder(dir))
+            .map((file) => join(folder, file))
+            .map((dir) => listFolder(dir))
         ).then(flatten)
       : Promise.resolve([])
   }
@@ -114,9 +114,7 @@ const findAllFolders = (folders: string[], options: YallOptions) => {
       const byParts = a.split(sep).length - b.split(sep).length
       return byParts ? byParts : a.length - b.length
     })
-  return Promise.all(folders.map(listFolder))
-    .then(flatten)
-    .then(sortByPath)
+  return Promise.all(folders.map(listFolder)).then(flatten).then(sortByPath)
 }
 
 const pipeChildProcess = (cp: ChildProcess) => {
@@ -130,7 +128,7 @@ const getAdditionalRunArgs = (options: YallOptions, pkg: PackageManifest) => {
   let args: string[] = []
   if (!options.npm && pkg.yarn) {
     if (isArray(pkg.yarn.flags)) {
-      args = args.concat(pkg.yarn.flags.map(arg => '--' + arg))
+      args = args.concat(pkg.yarn.flags.map((arg) => '--' + arg))
     }
     if (isArray(pkg.yarn.args)) {
       args = args.concat(pkg.yarn.args)
@@ -148,35 +146,35 @@ const readManifest = (folder: string) =>
 
 const getWorkspaces = async () => {
   const pkg = await readManifest('.')
-  return pkg.workspaces
+  return pkg.workspaces || []
 }
 
 const getFileDeps = (deps: PackageDependencies = {}, excludeYalc: boolean) =>
   Object.keys(deps)
-    .filter(name => deps[name].match(/^file:.*/))
-    .filter(name => !excludeYalc || !deps[name].match(/^file:.*\.yalc\//))
-    .map(name => ({
+    .filter((name) => deps[name].match(/^file:.*/))
+    .filter((name) => !excludeYalc || !deps[name].match(/^file:.*\.yalc\//))
+    .map((name) => ({
       name,
       address: deps[name],
-      path: deps[name].replace(/^file:/, '')
+      path: deps[name].replace(/^file:/, ''),
     }))
 
 const getLocalDeps = (deps: PackageDependencies = {}) =>
   Object.keys(deps)
-    .filter(name => deps[name].match(/^(file|link):.*/))
-    .map(name => ({
+    .filter((name) => deps[name].match(/^(file|link):.*/))
+    .map((name) => ({
       name,
       address: deps[name],
-      path: deps[name].replace(/^(file|link):/, '')
+      path: deps[name].replace(/^(file|link):/, ''),
     }))
 
 const remoteDepsRegPattern = /^(github|bitbucket|git+ssh|git|http|https):/
 const getRemoteDeps = (deps: PackageDependencies = {}) =>
   Object.keys(deps)
-    .filter(name => deps[name].match(remoteDepsRegPattern))
-    .map(name => ({
+    .filter((name) => deps[name].match(remoteDepsRegPattern))
+    .map((name) => ({
       name,
-      address: deps[name]
+      address: deps[name],
     }))
 
 const getPackageFileDeps = (pkg: PackageManifest, excludeYalc: boolean) =>
@@ -190,11 +188,6 @@ const getPackageLocalDeps = (pkg: PackageManifest) =>
 const getPackageRemoteDeps = (pkg: PackageManifest) =>
   getRemoteDeps(pkg.dependencies).concat(getRemoteDeps(pkg.devDependencies))
 
-const removeFileDepsFromCache = (pkg: PackageManifest, cacheDir: string) => {
-  const fileDeps = getPackageFileDeps(pkg, false).map(dep => dep.name)
-  return removeFromCache(fileDeps, { cacheDir })
-}
-
 const linkFileDeps = async (
   pkg: PackageManifest,
   cwd: string,
@@ -207,7 +200,7 @@ const linkFileDeps = async (
 
   await mkdir(join(cwd, modulesFolder))
   return Promise.all(
-    fileDeps.map(async dep => {
+    fileDeps.map(async (dep) => {
       const src = join(cwd, dep.path)
       const dest = join(cwd, modulesFolder, dep.name)
       log.just(
@@ -234,27 +227,27 @@ const failFastExit = (code: number) => {
 }
 
 const spawnRun = (folder: string, file: string, args: string[]) => {
-  return new Promise<RunResult>(resolve => {
+  return new Promise<RunResult>((resolve) => {
     const child = spawn(file, args, {
       cwd: folder,
       shell: true,
       env: {
         FORCE_COLOR: true,
-        PATH: process.env.PATH
-      }
+        PATH: process.env.PATH,
+      },
     })
 
     pipeChildProcess(child)
 
     let stderr = ''
-    child.stderr.on('data', data => {
+    child.stderr.on('data', (data) => {
       stderr += data.toString()
     })
-    child.on('error', error => {
+    child.on('error', (error) => {
       resolve({ folder, error: stripAnsi(error.message) })
     })
 
-    child.on('exit', code => {
+    child.on('exit', (code) => {
       resolve({ folder, error: code ? stripAnsi(stderr) : '', code: code })
     })
   })
@@ -279,7 +272,7 @@ const watchLock: { [folder: string]: number } = {}
 
 export const runOne = (command: string, options: YallOptions) => {
   return (folder: string) => {
-    return new Promise<RunResult>(async resolve => {
+    return new Promise<RunResult>(async (resolve) => {
       let pkg: PackageManifest
       try {
         pkg = await readManifest(folder)
@@ -294,14 +287,14 @@ export const runOne = (command: string, options: YallOptions) => {
           const localDeps = getPackageLocalDeps(pkg)
           if (localDeps.length) {
             command = 'add'
-            addArgs.push(localDeps.map(_ => _.address).join(' '))
+            addArgs.push(localDeps.map((_) => _.address).join(' '))
           }
         }
         if (options.forceRemote) {
           const remoteDeps = getPackageRemoteDeps(pkg)
           if (remoteDeps.length) {
             command = 'add'
-            addArgs.push(remoteDeps.map(_ => _.address).join(' '))
+            addArgs.push(remoteDeps.map((_) => _.address).join(' '))
           }
         }
       }
@@ -311,7 +304,10 @@ export const runOne = (command: string, options: YallOptions) => {
 
       const file = options.npm ? 'npm' : 'yarn'
 
-      const where = `${folder} (${pkg.name}@${pkg.version})`
+      const where =
+        `${folder || '.'}` + pkg.name && pkg.version
+          ? ` (${pkg.name}@${pkg.version})`
+          : ''
 
       if (options.cleanUp) {
         const modulesFolder = options.modulesFolder || 'node_modules'
@@ -352,12 +348,9 @@ export const runOne = (command: string, options: YallOptions) => {
       const cmd = [file].concat(args).join(' ')
       log.start(`Running \`${cmd}\` in ${where}`)
 
-      // this is to workaround yarn's back with `file:` deps
-      //await removeFileDepsFromCache(pkg, cacheDir)
-
       const startTime = new Date().getTime()
       const folderToRun = folder
-      spawnRun(folder, file, args).then(async result => {
+      spawnRun(folder, file, args).then(async (result) => {
         watchLock[folderToRun] = new Date().getTime()
         const { code, error, folder } = result
         if (options.linkFile) {
@@ -394,9 +387,9 @@ const getFoldersToRun = async (options: YallOptions) => {
     } else {
       const allFolders = await findAllFolders(folders, options)
       const workspaces = await getWorkspaces()
-      const filtered = allFolders.slice(1).filter(folder =>
-        workspaces.reduce((res, wrks) => {
-          return res || minimatch(folder, wrks)
+      const filtered = allFolders.slice(1).filter((folder) =>
+        workspaces.reduce((res, ws) => {
+          return res || minimatch(folder, ws)
         }, false)
       )
       return ['.'].concat(filtered)
@@ -440,7 +433,7 @@ export const runAll = async (command: string, options: YallOptions) => {
   const folders = await getFoldersToRun(options)
   const startTime = new Date().getTime()
   return queue(folders, runOne(command, options), options.concurrency)
-    .then(async results => {
+    .then(async (results) => {
       const fails: RunResult[] = []
       const isFailed = (r: RunResult) => r.error || r.code
       for (let r of results) {
@@ -457,9 +450,7 @@ export const runAll = async (command: string, options: YallOptions) => {
         }
         if (isFailed(r)) {
           log.warn(
-            `Try to run again sequentially in \`${
-              r.folder
-            }\` because of error: ${r.error}`
+            `Try to run again sequentially in \`${r.folder}\` because of error: ${r.error}`
           )
           r = await runOne(command, options)(r.folder)
         }
@@ -468,7 +459,7 @@ export const runAll = async (command: string, options: YallOptions) => {
       const timeTakenSec = (new Date().getTime() - startTime) / 1000
       const timeTaken = `(${timeTakenSec.toFixed(1)} sec)`
       if (fails.length) {
-        fails.forEach(result => {
+        fails.forEach((result) => {
           const { error, code, folder } = result!
           if (code) {
             log.error(
@@ -479,9 +470,7 @@ export const runAll = async (command: string, options: YallOptions) => {
           }
         })
         log.error(
-          `Yall done with ${fails.length} errors in ${
-            folders.length
-          } folders ${timeTaken}!`
+          `Yall done with ${fails.length} errors in ${folders.length} folders ${timeTaken}!`
         )
         if (!options.noExitOnError) {
           process.exit(1)
@@ -494,7 +483,7 @@ export const runAll = async (command: string, options: YallOptions) => {
       }
       return results
     })
-    .then(async results => {
+    .then(async (results) => {
       await removeLockFile(options)
       return results
     })
@@ -513,21 +502,21 @@ export const watchAll = async (
   const cwd = options.cwd
   let filesToWatch: { file: string; content: boolean }[] = []
   filesToWatch = (watchFiles || [])
-    .map(file => ({ file, content: false }))
-    .concat((watchContentFiles || []).map(file => ({ file, content: true })))
+    .map((file) => ({ file, content: false }))
+    .concat((watchContentFiles || []).map((file) => ({ file, content: true })))
   if (!filesToWatch.length) {
     filesToWatch = options.npm
       ? [
           {
             file: 'package.json',
-            content: !!watchContentFiles
-          }
+            content: !!watchContentFiles,
+          },
         ]
       : [
           {
             file: 'yarn.lock',
-            content: !!watchContentFiles
-          }
+            content: !!watchContentFiles,
+          },
         ]
   }
 
@@ -546,7 +535,7 @@ export const watchAll = async (
   const putHandlers = async () => {
     const folders = await getFoldersToRun(options)
     return Promise.all(
-      folders.map(folder => {
+      folders.map((folder) => {
         return Promise.all(
           filesToWatch
             .map(({ file, content }) => ({ content, file: join(folder, file) }))
@@ -558,7 +547,7 @@ export const watchAll = async (
               }
               const cachedHash = await readFile(
                 getWatchedFileCachedHashPath(join(cwd, file))
-              ).catch(err => '')
+              ).catch(() => '')
               if (cachedHash !== hash) {
                 addToChanged(folder)
               } else {
@@ -585,11 +574,11 @@ export const watchAll = async (
                     return
                   }
                   if (watchLock[folder]) {
-                    const changedHappendJustAfterRun =
+                    const changedHappenedJustAfterRun =
                       Math.abs(watchLock[folder] - eventTime) < 1000
-                    if (changedHappendJustAfterRun) {
+                    if (changedHappenedJustAfterRun) {
                       log.warn(
-                        `Change of ${file} in ${folder} happend just after run, skipping it.`
+                        `Change of ${file} in ${folder} happened just after run, skipping it.`
                       )
                       watchedFilesHashes[file] = hash
                     }
@@ -613,36 +602,40 @@ export const watchAll = async (
   outputWatchMessage()
   const checkChanged = async () => {
     let p: Promise<any> = timeout(2500)
-    if (changedFolders.length) {
-      p = runAll(
-        command,
-        Object.assign({}, options, {
-          force: options.force || options.forceChanged,
-          noExitOnError: true,
-          excludeFolders: [],
-          includeFolders: [],
-          here: true,
-          folders: changedFolders.concat([])
-        })
-      )
-        .then(async results => {
-          results
-            .filter(result => result.code === 0)
-            .map(result => {
-              const files = filesToWatch.map(f => join(result.folder, f.file))
-              return Promise.all(
-                files.map(file =>
-                  writeFile(
-                    getWatchedFileCachedHashPath(join(cwd, file)),
-                    watchedFilesHashes[file]
+
+    p = !changedFolders.length
+      ? timeout(2500)
+      : runAll(
+          command,
+          Object.assign({}, options, {
+            force: options.force || options.forceChanged,
+            noExitOnError: true,
+            excludeFolders: [],
+            includeFolders: [],
+            here: true,
+            folders: changedFolders.concat([]),
+          })
+        )
+          .then(async (results) => {
+            changedFolders.splice(0, changedFolders.length)
+
+            results
+              .filter((result) => result.code === 0)
+              .map((result) => {
+                const files = filesToWatch.map((f) =>
+                  join(result.folder, f.file)
+                )
+                return Promise.all(
+                  files.map((file) =>
+                    writeFile(
+                      getWatchedFileCachedHashPath(join(cwd, file)),
+                      watchedFilesHashes[file]
+                    )
                   )
                 )
-              )
-            })
-        })
-        .then(outputWatchMessage)
-      timeout(2500).then(() => changedFolders.splice(0, changedFolders.length))
-    }
+              })
+          })
+          .then(outputWatchMessage)
 
     p.then(putHandlers).then(checkChanged)
   }

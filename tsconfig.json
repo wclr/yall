@@ -6,6 +6,7 @@
     "declaration": false,
     "sourceMap": false,
     "strictNullChecks": true,
+    "skipLibCheck": true,    
     "noImplicitAny": true,
     "noImplicitThis": true, 
     "noImplicitReturns": true,
