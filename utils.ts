@@ -1,14 +1,15 @@
-import * as fs from 'fs'
-import * as rimraf from 'rimraf'
-import * as chalk from 'chalk'
-import * as crypto from 'crypto'
+import fs from 'fs'
+import { promises as fsP } from 'fs'
+import rimraf from 'rimraf'
+import chalk from 'chalk'
+import crypto from 'crypto'
 
 export const colors = {
   start: chalk.magenta,
   finish: chalk.magenta,
   warn: chalk.yellow,
   just: chalk.gray,
-  error: chalk.red
+  error: chalk.red,
 }
 
 type ColorLog = {
@@ -21,7 +22,7 @@ export const log: ColorLog = Object.keys(colors).reduce<ColorLog>(
   (obj, key: keyof typeof colors) =>
     Object.assign(obj, {
       [key]: (colorMessage: string, ...items: string[]) =>
-        console.log(colors[key](colorMessage), ...items)
+        console.log(colors[key](colorMessage), ...items),
     }),
   {} as any
 )
@@ -36,24 +37,26 @@ export const flatten = <T>(lists: T[][]): T[] =>
   lists.reduce<T[]>((flat, list) => flat.concat(list), [])
 
 export const mkdir = (dir: string) =>
-  new Promise((resolve, reject) =>
-    fs.access(dir, err => {
+  new Promise((resolve, reject) => {
+    fs.access(dir, (err) => {
       err
-        ? fs.mkdir(dir, err => {
+        ? fs.mkdir(dir, (err) => {
             err ? reject(err) : resolve()
           })
         : resolve()
     })
-  )
+  })
 
 export const remove = (path: string) =>
   new Promise((resolve, reject) => {
-    rimraf(path, err => (err ? reject(err) : resolve()))
+    rimraf(path, (err) => (err ? reject(err) : resolve()))
   })
 
 export const symlinkDir = (srcpath: string, dstpath: string) =>
   new Promise((resolve, reject) => {
-    fs.symlink(srcpath, dstpath, 'dir', err => (err ? reject(err) : resolve()))
+    fs.symlink(srcpath, dstpath, 'dir', (err) =>
+      err ? reject(err) : resolve()
+    )
   })
 
 export const timeout = (ms: number) =>
@@ -80,14 +83,14 @@ export const stat = (filepath: string) =>
 
 export const writeFile = (filePath: string, data = '') =>
   new Promise((resolve, reject) => {
-    fs.writeFile(filePath, data, err => (err ? reject(err) : resolve()))
+    fs.writeFile(filePath, data, (err) => (err ? reject(err) : resolve()))
   })
 
 export const ensureDir = (dirPath: string) =>
   new Promise((resolve, reject) => {
-    fs.access(dirPath, err => {
+    fs.access(dirPath, (err) => {
       err
-        ? fs.mkdir(dirPath, err => (err ? reject(err) : resolve()))
+        ? fs.mkdir(dirPath, (err) => (err ? reject(err) : resolve()))
         : resolve(dirPath)
     })
   })
@@ -103,7 +106,7 @@ export function queue<T, U>(
   items = items.slice()
   return new Promise((resolve, reject) => {
     const next = () => {
-      promiseProducer(items.shift()!).then(function(result) {
+      promiseProducer(items.shift()!).then(function (result) {
         results.push(result)
         if (results.length === total) {
           resolve(results)
@@ -117,10 +120,7 @@ export function queue<T, U>(
 }
 
 export const getStringHash = (str: string) =>
-  crypto
-    .createHash('md5')
-    .update(str)
-    .digest('hex')
+  crypto.createHash('md5').update(str).digest('hex')
 
 export const getFileContentHash = (filePath: string) =>
   new Promise<string>((resolve, reject) => {
@@ -130,3 +130,21 @@ export const getFileContentHash = (filePath: string) =>
     stream.on('error', () => resolve(''))
     stream.on('end', () => resolve(md5sum.digest('hex')))
   })
+
+export const getJsonFiledContentHash = async (
+  filePath: string,
+  field: string
+) => {
+  const fileContent = await fsP.readFile(filePath, 'utf-8')
+  try {
+    const json = JSON.parse(fileContent)
+    if (json[field] === 'undefined') {
+      return null
+    }
+    const data = JSON.stringify(json[field])
+    return crypto.createHash('md5').update(data).digest('hex')
+  } catch (e) {
+    console.error(e.message || e)
+    return null
+  }
+}

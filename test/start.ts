@@ -1,4 +1,4 @@
-import * as fs from 'fs-extra'
+import fs from 'fs-extra'
 import { join } from 'path'
 import { execSync } from 'child_process'
 
@@ -10,7 +10,7 @@ for (let i = 1; i <= 5; i++) {
 execSync('node ../src/yall', {
   cwd: '/test', stdio: 'inherit',
   env: {
-    FORCE_COLOR: true,
+    FORCE_COLOR: 'true',
     PATH: process.env.PATH
   }  
 })

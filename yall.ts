@@ -29,7 +29,7 @@ const yallFlags = [
   'only-workspaces',
   'separate-cache-folders',
   'skip-first-run',
-  'sep-cache'
+  'sep-cache'  
 ]
 
 const cliCommand = 'yall'

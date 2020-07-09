@@ -1,9 +1,9 @@
 import { spawn, ChildProcess } from 'child_process'
 import { basename, join, dirname, sep } from 'path'
 import { tmpdir } from 'os'
-import * as fs from 'fs'
+import fs from 'fs'
 import { getCacheDir } from 'yacr'
-import * as minimatch from 'minimatch'
+import minimatch from 'minimatch'
 import {
   mkdir,
   symlinkDir,
@@ -14,12 +14,13 @@ import {
   queue,
   stripAnsi,
   timeout,
-  getFileContentHash,
-  getStringHash,
   ensureDir,
   readFile,
   stat,
   readdir,
+  getFileContentHash,
+  getStringHash,
+  getJsonFiledContentHash,
 } from './utils'
 
 const defaultLockfile = '.yall.lock'
@@ -118,8 +119,8 @@ const findAllFolders = (folders: string[], options: YallOptions) => {
 }
 
 const pipeChildProcess = (cp: ChildProcess) => {
-  cp.stdout.pipe(process.stdout)
-  cp.stderr.pipe(process.stderr)
+  cp.stdout!.pipe(process.stdout)
+  cp.stderr!.pipe(process.stderr)
 }
 
 const isArray = Array.isArray
@@ -215,7 +216,7 @@ const linkFileDeps = async (
 
 type RunResult = {
   folder: string
-  code?: number
+  code?: number | null
   error?: string
 }
 
@@ -232,15 +233,15 @@ const spawnRun = (folder: string, file: string, args: string[]) => {
       cwd: folder,
       shell: true,
       env: {
-        FORCE_COLOR: true,
+        FORCE_COLOR: 'true',
         PATH: process.env.PATH,
       },
-    })
+    })!
 
     pipeChildProcess(child)
 
     let stderr = ''
-    child.stderr.on('data', (data) => {
+    child.stderr!.on('data', (data) => {
       stderr += data.toString()
     })
     child.on('error', (error) => {
@@ -492,6 +493,8 @@ export const runAll = async (command: string, options: YallOptions) => {
 const getWatchedFileCachedHashPath = (filePath: string) =>
   join(tmpdir(), `yall_cached_hash_${getStringHash(filePath)}`)
 
+const cleanPath = (p: string) => p.replace(/:.*/, '')
+
 export const watchAll = async (
   command: string,
   options: YallOptions,
@@ -508,7 +511,7 @@ export const watchAll = async (
     filesToWatch = options.npm
       ? [
           {
-            file: 'package.json',
+            file: 'npm-package-lock.json',
             content: !!watchContentFiles,
           },
         ]
@@ -538,39 +541,56 @@ export const watchAll = async (
       folders.map((folder) => {
         return Promise.all(
           filesToWatch
-            .map(({ file, content }) => ({ content, file: join(folder, file) }))
-            .filter(({ file }) => !watchedFiles[file])
-            .map(async ({ file, content }) => {
-              const hash = await getFileContentHash(file)
+            .map(({ file, content }) => ({
+              content,
+              filePath: join(folder, file),
+            }))
+            .filter(({ filePath: file }) => !watchedFiles[file])
+            .map(async ({ filePath, content }) => {
+              const filePathToWatch = cleanPath(filePath)
+
+              const getPropHash = async () => {
+                const prop = filePath.split(':')[1]
+                const hash = prop
+                  ? await getJsonFiledContentHash(filePathToWatch, prop)
+                  : null
+                prop &&
+                  console.log(`Checking json field ${prop} in`, filePath, hash )
+                return hash
+              }
+
+              const hash =
+                (await getPropHash()) ||
+                (await getFileContentHash(filePathToWatch))
               if (!hash) {
                 return
               }
               const cachedHash = await readFile(
-                getWatchedFileCachedHashPath(join(cwd, file))
+                getWatchedFileCachedHashPath(join(cwd, filePath))
               ).catch(() => '')
               if (cachedHash !== hash) {
                 addToChanged(folder)
               } else {
                 log.just(
-                  `Cached hash of ${file} in ${folder} didn't change from last run.`
+                  `Cached hash of ${filePath} in ${folder} didn't change from last run.`
                 )
               }
 
-              watchedFilesHashes[file] = hash
-              watchedFiles[file] = true
+              watchedFilesHashes[filePath] = hash
+              watchedFiles[filePath] = true
               fs.watchFile(
-                file,
+                filePathToWatch,
                 { persistent: true, interval: options.interval || 1000 },
                 async () => {
                   const eventTime = new Date().getTime()
-                  const hash = await getFileContentHash(file)
+                  const hash = await getFileContentHash(filePathToWatch)
                   if (!hash) {
                     log.warn(
-                      `Could not get hash of file ${file}, removing from watch.`
+                      `Could not get hash of file ${filePath}, removing from watch.`
                     )
-                    delete watchedFilesHashes[file]
-                    delete watchedFiles[file]
-                    fs.unwatchFile(file, () => {})
+                    delete watchedFilesHashes[filePath]
+                    delete watchedFiles[filePath]
+                    fs.unwatchFile(filePathToWatch, () => {})
                     return
                   }
                   if (watchLock[folder]) {
@@ -578,17 +598,17 @@ export const watchAll = async (
                       Math.abs(watchLock[folder] - eventTime) < 1000
                     if (changedHappenedJustAfterRun) {
                       log.warn(
-                        `Change of ${file} in ${folder} happened just after run, skipping it.`
+                        `Change of ${filePath} in ${folder} happened just after run, skipping it.`
                       )
-                      watchedFilesHashes[file] = hash
+                      watchedFilesHashes[filePath] = hash
                     }
                     delete watchLock[folder]
                   }
-                  if (content && hash === watchedFilesHashes[file]) {
+                  if (content && hash === watchedFilesHashes[filePath]) {
                     return
                   }
-                  watchedFilesHashes[file] = hash
-                  log.warn(`File changed: ${file} in ${folder}`)
+                  watchedFilesHashes[filePath] = hash
+                  log.warn(`File changed: ${filePath} in ${folder}`)
                   addToChanged(folder)
                 }
               )
@@ -644,3 +664,11 @@ export const watchAll = async (
   }
   return checkChanged()
 }
+
+process.on('uncaughtException', (error) => {
+  console.log('uncaughtException', error.stack || error)
+})
+
+process.on('unhandledRejection', (error: any) => {
+  console.log('unhandledRejection', error)
+})
