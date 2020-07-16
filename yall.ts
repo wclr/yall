@@ -8,6 +8,7 @@ const yallFlags = [
   'con',
   'clean-up',
   'fail-fast',
+  'cmd',
   'npm',
   'in',
   'folders',
@@ -29,7 +30,7 @@ const yallFlags = [
   'only-workspaces',
   'separate-cache-folders',
   'skip-first-run',
-  'sep-cache'  
+  'sep-cache',  
 ]
 
 const cliCommand = 'yall'
@@ -55,22 +56,26 @@ yargs
     alias: 'con',
     type: 'number',
     describe: 'Number of concurrenlty running commands',
-    default: 10
+    default: 10,
+  })
+  .option('cmd', {
+    type: 'string',
+    describe: 'custom cmd to run instead of yarn/npm',  
   })
   .option('interval', {
     type: 'number',
     describe: 'Watch pooling interval, in ms',
-    default: 1000
+    default: 1000,
   })
   .options('link-file', {
     alias: 'link-files',
     describe: 'Create symlinks for `file:` dependencies',
-    type: 'boolean'
+    type: 'boolean',
   })
   .options('separate-cache-folders', {
     alias: 'sep-cache',
     describe: 'Seed to make a separate cache folder for each installation.',
-    type: 'string'
+    type: 'string',
   })
   .string(['lock', 'lock-each'])
   .array([
@@ -79,7 +84,7 @@ yargs
     'include-folders',
     'in',
     'watch',
-    'watch-content'
+    'watch-content',
   ])
   .boolean([
     'force',
@@ -88,7 +93,7 @@ yargs
     'fail-fast',
     'npm',
     'dot-folders',
-    'only-workspaces'
+    'only-workspaces',
   ])
   .help(true).argv as Args
 

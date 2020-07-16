@@ -44,6 +44,7 @@ export interface YallOptions extends YarnOptions {
   interval: number
   noExitOnError?: boolean
   npm?: boolean
+  cmd?: string
   cwd: string
   dotFolders?: boolean
   in?: string[]
@@ -127,7 +128,7 @@ const isArray = Array.isArray
 
 const getAdditionalRunArgs = (options: YallOptions, pkg: PackageManifest) => {
   let args: string[] = []
-  if (!options.npm && pkg.yarn) {
+  if (!options.cmd && !options.npm && pkg.yarn) {
     if (isArray(pkg.yarn.flags)) {
       args = args.concat(pkg.yarn.flags.map((arg) => '--' + arg))
     }
@@ -303,7 +304,7 @@ export const runOne = (command: string, options: YallOptions) => {
         .concat(addArgs)
         .concat(getAdditionalRunArgs(options, pkg))
 
-      const file = options.npm ? 'npm' : 'yarn'
+      const file = options.cmd ? options.cmd : options.npm ? 'npm' : 'yarn'
 
       const where =
         `${folder || '.'}` + pkg.name && pkg.version
@@ -555,7 +556,7 @@ export const watchAll = async (
                   ? await getJsonFiledContentHash(filePathToWatch, prop)
                   : null
                 prop &&
-                  console.log(`Checking json field ${prop} in`, filePath, hash )
+                  console.log(`Checking json field ${prop} in`, filePath, hash)
                 return hash
               }
 
