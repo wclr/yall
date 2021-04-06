@@ -1,6 +1,6 @@
 {
   "name": "@whitecolor/yall",
-  "version": "1.0.0-pre.6",
+  "version": "1.0.0-pre.7",
   "main": "index.js",
   "bin": {
     "yall": "yall.js"
@@ -10,9 +10,10 @@
     "singleQuote": true
   },
   "scripts": {
-    "clean": "trash **/*.js **/*.js.map **/*.d.ts **/*.log !**/node_modules/**",
+    "clean": "ts-clean-built --old",
     "test": "docker-compose -f test/docker-compose.yml run --rm test",
-    "prepublishOnly": "clean && tsc && yarn test"
+    "prepublishOnly": "yarn clean && tsc && yarn test",
+    "build": "yarn tsc"
   },
   "license": "MIT",
   "devDependencies": {
@@ -32,6 +33,7 @@
   "dependencies": {
     "chalk": "^4.1.0",
     "minimatch": "^3.0.4",
+    "rimraf": "^3.0.2",
     "yacr": "^1.0.0-pre.6",
     "yargs": "^7.1.0"
   }

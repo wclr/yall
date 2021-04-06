@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 import * as yargs from 'yargs'
-import { YallOptions, runAll, watchAll } from '.'
+
+import { runAll, watchAll, YallOptions } from '.'
 
 const yallFlags = [
   'debug',
@@ -30,7 +31,8 @@ const yallFlags = [
   'only-workspaces',
   'separate-cache-folders',
   'skip-first-run',
-  'sep-cache',  
+  'sep-cache',
+  'exec-after'
 ]
 
 const cliCommand = 'yall'
@@ -60,7 +62,7 @@ yargs
   })
   .option('cmd', {
     type: 'string',
-    describe: 'custom cmd to run instead of yarn/npm',  
+    describe: 'custom cmd to run instead of yarn/npm',
   })
   .option('interval', {
     type: 'number',
@@ -77,7 +79,7 @@ yargs
     describe: 'Seed to make a separate cache folder for each installation.',
     type: 'string',
   })
-  .string(['lock', 'lock-each'])
+  .string(['lock', 'lock-each', 'exec-after'])
   .array([
     'folders',
     'exclude-folders',

@@ -1,0 +1,7 @@
+{
+  "semi": false,
+  "singleQuote": false,
+  "arrowParens": "avoid",
+  "quoteProps": "preserve",
+  "printWidth": 76
+}

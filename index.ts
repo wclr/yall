@@ -1,8 +1,8 @@
-import { spawn, ChildProcess } from 'child_process'
+import { spawn, ChildProcess, execSync } from 'child_process'
 import { basename, join, dirname, sep } from 'path'
 import { tmpdir } from 'os'
 import fs from 'fs'
-import { getCacheDir } from 'yacr'
+//import { getCacheDir } from 'yacr'
 import minimatch from 'minimatch'
 import {
   mkdir,
@@ -24,9 +24,9 @@ import {
 } from './utils'
 
 const defaultLockfile = '.yall.lock'
-const defaultYarnCacheDir = getCacheDir()
-  .then(stripAnsi)
-  .catch(() => '')
+// const defaultYarnCacheDir = getCacheDir()
+//   .then(stripAnsi)
+//   .catch(() => '')
 
 const cacheDirs: { [hash: string]: string } = {}
 
@@ -41,6 +41,7 @@ export interface YallOptions extends YarnOptions {
   forceChanged: boolean
   concurrency: number
   failFast?: boolean
+  execAfter?: string
   interval: number
   noExitOnError?: boolean
   npm?: boolean
@@ -324,7 +325,7 @@ export const runOne = (command: string, options: YallOptions) => {
       const sepCache = options.separateCacheFolders
       if (typeof sepCache === 'string') {
         if (!options.cacheFolder) {
-          cacheFolder = (await defaultYarnCacheDir).replace(/v\d+$/, '')
+          //cacheFolder = (await defaultYarnCacheDir).replace(/v\d+$/, '')
         }
         cacheFolder = join(
           cacheFolder,
@@ -334,10 +335,10 @@ export const runOne = (command: string, options: YallOptions) => {
         )
       }
 
-      const cacheDir =
-        cacheDirs[cacheFolder] || (await getCacheDir({ cacheFolder }))
-      cacheDirs[cacheFolder] = cacheDir
-
+      const cacheDir = undefined
+      //cacheDirs[cacheFolder] || (await getCacheDir({ cacheFolder }))
+      //cacheDirs[cacheFolder] = cacheDir
+      // TODO remove all this cache stuff
       if (sepCache || options.cacheFolder) {
         await ensureDir(cacheFolder)
         args.push(`--cache-folder ${cacheFolder}`)
@@ -655,6 +656,12 @@ export const watchAll = async (
                   )
                 )
               })
+          })
+          .then(() => {
+            if (options.execAfter) {
+              log.just('Executing after cmd:', options.execAfter)
+              execSync(options.execAfter, { stdio: 'inherit' })
+            }
           })
           .then(outputWatchMessage)
 
